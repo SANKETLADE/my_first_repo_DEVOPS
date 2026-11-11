@@ -1,0 +1,46 @@
+name: StudentHub CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Repository Code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm install
+      - name: Verify Build
+        run: echo "All Node dependencies installed successfully!"
+
+  deploy-to-aws:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect and Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST_IP }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. Create a dedicated folder on AWS for your live app
+            mkdir -p ~/live-production
+            cd ~/live-production
+            
+            # 2. Download the newest code from your GitHub repo
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/SANKETLADE/my_first_repo_DEVOPS.git .
+            else
+              git pull origin main
+            fi
+            
+            # 3. Rebuild and restart your containers with the new code
+            docker compose down
+            docker compose up -d --build
